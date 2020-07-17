@@ -32,6 +32,7 @@ def get_options(list_lands):
     return dict_list
 
 app = dash.Dash(__name__)
+server = app.server
 
 app.layout = html.Div(children=[
                 html.Div(className='row',
