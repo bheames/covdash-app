@@ -43,6 +43,7 @@ for code in my_codes:
 final_df = pd.concat(country_dfs)
 
 def get_options(list_countries):
+    list_countries = sorted(list_countries)
     dict_list = []
     for i in list_countries:
         dict_list.append({'label': i, 'value': i})
@@ -52,18 +53,23 @@ app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 server = app.server
 
 app.layout = html.Div(children=[
-#                html.Div(className='row',
                 dbc.Row(
-#                    children=[
                     [dbc.Col(
-                        html.Div(className='four columns div-user-controls',
+                        html.Div(className='controls',
                             children=[
-                                html.H2('Covid-19 tracker'),
+                                html.H2('COVID-19 tracker'),
                                 html.P('Data source:'),
-                                html.A("https://thevirustracker.com", href='https://thevirustracker.com', target="_blank"),
+                                html.A("https://thevirustracker.com", 
+                                       href='https://thevirustracker.com', 
+                                       target="_blank"),
+                                html.P(''),
+                                html.P('Code:'),
+                                html.A("https://github.com/bheames/covdash-app", 
+                                       href='https://github.com/bheames/covdash-app', 
+                                       target="_blank"),
                                 html.P(''),
                                 html.P('''Pick one or more countries from the dropdown below:'''),  
-                                html.Div(className='div-for-dropdown',
+                                html.Div(className='dropdown',
                                     children=[
                                     dcc.Dropdown(id='selector',
                                     options=get_options(final_df['country'].unique()),
@@ -75,7 +81,7 @@ app.layout = html.Div(children=[
                                     ],
                                     style={'color': '#AAAAAA'})    
                                 ]), width={"size": 3, "offset": 1, "justify": "between"}),
-                        dbc.Col(html.Div(className='eight columns div-for-charts bg-grey',
+                        dbc.Col(html.Div(className='charts',
                             children=[
                                     dcc.Graph(
                                     id='timeseries', 
@@ -94,11 +100,8 @@ app.layout = html.Div(children=[
               [Input('selector', 'value')])
 def update_timeseries(selected_dropdown_value):
     ''' Draw traces of the feature 'value' based one the currently selected countries'''
-    # STEP 1
     trace = []  
     df_sub = final_df
-    # STEP 2
-    # Draw and append traces for each stock
     for country in selected_dropdown_value:   
         trace.append(go.Scatter(x=df_sub[df_sub['country'] == country].cases,
                                 y=df_sub[df_sub['country'] == country].daily_cases_change_av,
@@ -106,11 +109,8 @@ def update_timeseries(selected_dropdown_value):
                                 opacity=0.7,
                                 name=country,
                                 textposition='bottom center'))  
-    # STEP 3
     traces = [trace]
     data = [val for sublist in traces for val in sublist]
-    # Define Figure
-    # STEP 4
     figure = {'data': data,
               'layout': go.Layout(
                   colorway=["#5E0DAC", '#FF4F00', '#375CB1', '#FF7400', '#FFF400', '#FF0056'],
@@ -120,23 +120,19 @@ def update_timeseries(selected_dropdown_value):
                   margin={'b': 15},
                   hovermode='x',
                   autosize=True,
-                  title={'text': 'Growth trajectory', 'font': {'color': 'black'}, 'x': 0.5},
-                  xaxis={'range': [2, math.log(df_sub.cases.max(), 10)], 'type': 'log'},
-                  yaxis={'type': 'log'}
+#                  title={'text': 'Growth trajectory', 'font': {'color': 'black'}, 'x': 0.5},
+                  xaxis={'range': [2, math.log(df_sub.cases.max(), 10)], 'type': 'log', 'title': 'Total cases'},
+                  yaxis={'type': 'log', 'title': 'New daily cases (7 day average)'}
               ),
               }
     return figure
-
 
 @app.callback(Output('change', 'figure'),
               [Input('selector', 'value')])
 def update_timeseries(selected_dropdown_value):
     ''' Draw traces of the feature 'value' based one the currently selected countries'''
-    # STEP 1
     trace = []  
     df_sub = final_df
-    # STEP 2
-    # Draw and append traces for each stock
     for country in selected_dropdown_value:   
         trace.append(go.Scatter(x=df_sub[df_sub['country'] == country].index,
                                 y=df_sub[df_sub['country'] == country].daily_cases_change,
@@ -144,11 +140,8 @@ def update_timeseries(selected_dropdown_value):
                                 opacity=0.7,
                                 name=country,
                                 textposition='bottom center'))  
-    # STEP 3
     traces = [trace]
     data = [val for sublist in traces for val in sublist]
-    # Define Figure
-    # STEP 4
     figure = {'data': data,
               'layout': go.Layout(
                   colorway=["#5E0DAC", '#FF4F00', '#375CB1', '#FF7400', '#FFF400', '#FF0056'],
@@ -158,27 +151,12 @@ def update_timeseries(selected_dropdown_value):
                   margin={'b': 15},
                   hovermode='x',
                   autosize=True,
-                  title={'text': 'Daily change', 'font': {'color': 'black'}, 'x': 0.5},
-                  xaxis={'range': [df_sub.index.min(), df_sub.index.max()],},
+#                  title={'text': 'Daily change in total case numbers', 'font': {'color': 'black'}, 'x': 0.5},
+                  xaxis={'range': [df_sub.index.min(), df_sub.index.max()], 'title': 'Date'},
+#                  yaxis={'title': 'Daily change'}
               ),
               }
     return figure
-
-#dcc.Graph(
-#id='timeseries',
-#config={'displayModeBar': False},
-#animate=True,
-#figure=px.line(final_df,
-#    x='cases',
-#    y='daily_cases_change_av',
-#    color='country',
-#    template='plotly_dark').update_layout(
-#    {'plot_bgcolor': 'rgba(0, 0, 0, 0)',
-#    'paper_bgcolor': 'rgba(0, 0, 0, 0)',
-#    'yaxis_type': 'log',
-#    'xaxis_type': 'log',
-#    'xaxis_range': ('1.5','7')})
-#    )
 
 if __name__ == '__main__':
     app.run_server(debug=True)
