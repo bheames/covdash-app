@@ -105,7 +105,7 @@ app.layout = html.Div(children=[
                                                        final_df['country'].unique()),
                                                    multi=True,
                                                    value=[
-                                                       'United Kingdom'],
+                                                       'United States'],
                                                    style={
                                                        'backgroundColor': '#FFFFFF'},
                                                    className='selector')
