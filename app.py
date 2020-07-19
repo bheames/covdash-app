@@ -1,5 +1,15 @@
+from keras.layers import Dropout
+from keras.layers import LSTM
+from keras.layers import Dense
+from keras.models import Sequential
+from keras.preprocessing.sequence import TimeseriesGenerator
+from sklearn.preprocessing import MinMaxScaler
+from statsmodels.tools.eval_measures import rmse
 import requests
 import pandas as pd
+from pandas.tseries.offsets import DateOffset
+import numpy as np
+import matplotlib.pyplot as plt
 import math
 import json
 import dash
@@ -42,6 +52,51 @@ for code in my_codes:
 
 final_df = pd.concat(country_dfs)
 
+prediction_dict = {}
+
+n_input = 20
+
+def predict_country(my_country, dataset):
+    ts_data = dataset[dataset['country'] == my_country]['daily_cases_change_av']
+    ts_data = pd.DataFrame(ts_data)
+    train = ts_data
+
+    n_input = 20
+    n_features = 1
+    
+    scaler = MinMaxScaler()
+    scaler.fit(train)
+    train = scaler.transform(train)
+
+    generator = TimeseriesGenerator(train, train, length=n_input, batch_size=30)
+
+    model = Sequential()
+    model.add(LSTM(200, activation='relu', input_shape=(n_input, n_features)))
+    model.add(Dropout(0.25))
+    model.add(Dense(1))
+
+    model.compile(optimizer='adam', loss='mse')
+    model.fit(generator, epochs=100, verbose=0)
+
+    pred_list = []
+
+    batch = train[-n_input:].reshape((1, n_input, n_features))
+
+    for i in range(n_input):
+        pred_list.append(model.predict(batch)[0])
+        batch = np.append(batch[:, 1:,:], [[pred_list[i]]], axis=1)
+
+    add_dates = [ts_data.index[-1] + DateOffset(days = x) for x in range(21)]
+
+    future_dates = pd.DataFrame(index=add_dates[1:], columns=ts_data.columns)
+
+    df_predict = pd.DataFrame(scaler.inverse_transform(pred_list),
+                             index=future_dates[-n_input:].index, columns=['prediction'])
+
+    df_proj = pd.concat([ts_data, df_predict], axis=1)
+    df_proj['country'] = my_country
+    return df_proj
+
 def get_options(list_countries):
     list_countries = sorted(list_countries)
     dict_list = []
@@ -57,18 +112,9 @@ app.layout = html.Div(children=[
                     [dbc.Col(
                         html.Div(className='controls',
                             children=[
-                                html.H2('COVID-19 tracker'),
-                                html.P('Data source:'),
-                                html.A("https://thevirustracker.com", 
-                                       href='https://thevirustracker.com', 
-                                       target="_blank"),
                                 html.P(''),
-                                html.P('Code:'),
-                                html.A("https://github.com/bheames/covdash-app", 
-                                       href='https://github.com/bheames/covdash-app', 
-                                       target="_blank"),
-                                html.P(''),
-                                html.P('''Pick one or more countries from the dropdown below:'''),  
+                                html.H4('COVID-19 tracker'),
+                                html.P('''Pick one or more countries from the dropdown below to chart growth trajectories and daily change [right]:'''),  
                                 html.Div(className='dropdown',
                                     children=[
                                     dcc.Dropdown(id='selector',
@@ -79,8 +125,31 @@ app.layout = html.Div(children=[
                                     style={'backgroundColor': '#FFFFFF'},
                                     className='selector')
                                     ],
-                                    style={'color': '#AAAAAA'})    
-                                ]), width={"size": 3, "offset": 1, "justify": "between"}),
+                                    style={'color': '#AAAAAA'}),
+                                html.P(''),
+                                html.P('''Additionally, pick one or more countries for LSTM-based forecasting of daily cases [below]. Allow 10-20 seconds for successive predictions.'''),
+                                html.Div(className='dropdown',
+                                    children=[
+                                    dcc.Dropdown(id='prediction-selector',
+                                    options=get_options(final_df['country'].unique()),
+                                    multi=True,
+                                    value=['United Kingdom'],
+                                    style={'backgroundColor': '#FFFFFF'},
+                                    className='selector')
+                                    ],
+                                    style={'color': '#AAAAAA'}),
+                                dcc.Graph(
+                                    id='prediction', 
+                                    config={'displayModeBar': False},
+                                    style={'height': '50vh'}),
+                                html.H6('Data source and code:'),
+                                html.P(html.A("https://thevirustracker.com", 
+                                       href='https://thevirustracker.com', 
+                                       target="_blank")),
+                                html.P(html.A("https://github.com/bheames/covdash-app", 
+                                       href='https://github.com/bheames/covdash-app', 
+                                       target="_blank")),
+                                ]), width={"size": 4, "offset": 1, "justify": "between"}),
                         dbc.Col(html.Div(className='charts',
                             children=[
                                     dcc.Graph(
@@ -90,7 +159,8 @@ app.layout = html.Div(children=[
                                     dcc.Graph(
                                     id='change', 
                                     config={'displayModeBar': False},
-                                    style={'height': '50vh'})
+                                    style={'height': '50vh'}
+                                    ),
                             ],
                                 style={'textAlign': 'right'}))
                                 ]),
@@ -122,20 +192,20 @@ def update_timeseries(selected_dropdown_value):
                   autosize=True,
 #                  title={'text': 'Growth trajectory', 'font': {'color': 'black'}, 'x': 0.5},
                   xaxis={'range': [2, math.log(df_sub.cases.max(), 10)], 'type': 'log', 'title': 'Total cases'},
-                  yaxis={'type': 'log', 'title': 'New daily cases (7 day average)'}
+                  yaxis={'type': 'log', 'title': 'Change in daily cases (7 day average)'}
               ),
               }
     return figure
 
 @app.callback(Output('change', 'figure'),
               [Input('selector', 'value')])
-def update_timeseries(selected_dropdown_value):
+def update_change(selected_dropdown_value):
     ''' Draw traces of the feature 'value' based one the currently selected countries'''
     trace = []  
     df_sub = final_df
     for country in selected_dropdown_value:   
         trace.append(go.Scatter(x=df_sub[df_sub['country'] == country].index,
-                                y=df_sub[df_sub['country'] == country].daily_cases_change,
+                                y=df_sub[df_sub['country'] == country].daily_cases_change_av,
                                 mode='lines',
                                 opacity=0.7,
                                 name=country,
@@ -152,8 +222,46 @@ def update_timeseries(selected_dropdown_value):
                   hovermode='x',
                   autosize=True,
 #                  title={'text': 'Daily change in total case numbers', 'font': {'color': 'black'}, 'x': 0.5},
-                  xaxis={'range': [df_sub.index.min(), df_sub.index.max()], 'title': 'Date'},
-#                  yaxis={'title': 'Daily change'}
+                  xaxis={'range': [df_sub.index.min(), df_sub.index.max()], 'title': ''},
+                  yaxis={'title': 'Change in daily change (7 day average)'}
+              ),
+              }
+    return figure
+
+@app.callback(Output('prediction', 'figure'),
+              [Input('prediction-selector', 'value')])
+def update_prediction(selected_dropdown_value):
+    ''' Draw traces of the feature 'value' based one the currently selected countries'''
+    trace = []  
+    df_sub = final_df
+    global prediction_dict
+    for country in selected_dropdown_value: 
+        if country in prediction_dict:
+            df_proj = prediction_dict[country]
+        else:
+            df_proj = predict_country(country, df_sub)
+            df_proj = df_proj[-n_input:]
+            prediction_dict[country] = df_proj
+        trace.append(go.Scatter(x=df_proj.index,
+                                y=df_proj.prediction,
+                                mode='markers',
+                                opacity=0.7,
+                                name=country,
+                                textposition='bottom center'))  
+    traces = [trace]
+    data = [val for sublist in traces for val in sublist]
+    figure = {'data': data,
+              'layout': go.Layout(
+                  colorway=["#5E0DAC", '#FF4F00', '#375CB1', '#FF7400', '#FFF400', '#FF0056'],
+                  template='plotly_white',
+                  paper_bgcolor='rgba(0, 0, 0, 0)',
+                  plot_bgcolor='rgba(0, 0, 0, 0)',
+                  margin={'b': 15},
+                  hovermode='x',
+                  autosize=True,
+#                  title={'text': 'Growth trajectory', 'font': {'color': 'black'}, 'x': 0.5},
+#                  xaxis={'title': 'Date'},
+                  yaxis={'title': 'Predicted daily cases'}
               ),
               }
     return figure
