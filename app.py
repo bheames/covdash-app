@@ -4,7 +4,6 @@ from keras.layers import Dense
 from keras.models import Sequential
 from keras.preprocessing.sequence import TimeseriesGenerator
 from sklearn.preprocessing import MinMaxScaler
-from statsmodels.tools.eval_measures import rmse
 import requests
 import pandas as pd
 from pandas.tseries.offsets import DateOffset
