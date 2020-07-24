@@ -1,7 +1,6 @@
 import requests
 import pandas as pd
 from statsmodels.tsa.ar_model import AutoReg
-from statsmodels.tsa.statespace.sarimax import SARIMAX
 from pandas.tseries.offsets import DateOffset
 import numpy as np
 import matplotlib.pyplot as plt
@@ -58,10 +57,8 @@ def predict_country_ar(country, dataset, days):
     ts_data = pd.DataFrame(ts_data)
     batch = ts_data.values
     for i in range(n_input):
-#        model = AutoReg(batch, lags=1)
-        model = SARIMAX(batch, order=(1,1,1), enforce_stationarity=False, enforce_invertibility=False)
-#        model_fit = model.fit()
-        model_fit = model.fit(disp=False)
+        model = AutoReg(batch, lags=1)
+        model_fit = model.fit()
         pred = model_fit.predict(len(batch), len(batch))
         batch = np.append(batch, pred)
     preds = batch[-n_input:]
