@@ -264,7 +264,7 @@ def update_prediction(country_list, weeks):
     if weeks:
         n_input = int(weeks)*7
         for country in country_list:
-            df_proj = predict_country_ar(country, df_sub, n_input)
+            df_proj = predict_country_ar(country, n_input, df_sub)
             df_proj = df_proj[-n_input:]
             trace.append(go.Scatter(x=df_proj.index,
                                     y=df_proj.prediction,
