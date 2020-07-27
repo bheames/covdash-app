@@ -64,7 +64,6 @@ def predict_country_ar(country, ndays, dataset):
     desired number of days and input dataframe. Currently uses
     an autoregression model from the statsmodels module, and
     predicts based on the rolling seven day average cases."""
-#    n_input = days
     ts_data = dataset[dataset['country'] == country]['daily_cases_change_av']
     ts_data = pd.DataFrame(ts_data)
     batch = ts_data.values
@@ -283,7 +282,7 @@ def update_prediction(country_list, weeks):
                           title={'text': 'Autoregression forecast', 
                                  'font': {'color': 'black', 'size': 17}, 
                                  'x': 0.5, 'y': 0.935},
-                          yaxis={'title': 'Change in daily cases'}
+                          yaxis={'title': 'Change in cases'}
                   )}
         return figure
     else:
