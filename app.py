@@ -184,7 +184,8 @@ app.layout = dbc.Container(
 @app.callback(Output('timeseries', 'figure'),
               [Input('selector', 'value')])
 def update_timeseries(selected_dropdown_value):
-    ''' Plot growth trajectory curves based on selected countries.'''
+    ''' Plot log-log growth trajectory 
+    curves for the selected countries.'''
     trace = []
     df_sub = final_df
     for country in selected_dropdown_value:
@@ -212,7 +213,7 @@ def update_timeseries(selected_dropdown_value):
                              'hoverformat': '.1s',
                              'title': 'Total cases'},
                       yaxis={'type': 'log',
-                             'title': 'Change in daily cases'}
+                             'title': 'Change in cases (per day)'}
               )}
     return figure
 
@@ -220,7 +221,7 @@ def update_timeseries(selected_dropdown_value):
 @app.callback(Output('change', 'figure'),
               [Input('selector', 'value')])
 def update_change(selected_dropdown_value):
-    ''' Plot daily change in cases based on selected countries.'''
+    ''' Plot daily change in cases for the selected countries.'''
     trace = []
     df_sub = final_df
     for country in selected_dropdown_value:
@@ -245,7 +246,7 @@ def update_change(selected_dropdown_value):
                       title={'text': 'Daily change in cases (7 day average)', 
                           'font': {'color': 'black', 'size': 17}, 
                           'x': 0.5, 'y': 0.98},
-                      yaxis={'title': 'Change in daily cases'}
+                      yaxis={'title': 'Change in cases (per day)'}
               )}
     return figure
 
@@ -254,8 +255,9 @@ def update_change(selected_dropdown_value):
               [Input('selector', 'value'), 
                Input('prediction-weeks', 'value')])
 def update_prediction(country_list, weeks):
-    '''Plot case forecasts based on  
-    currently selected countries and desired forecast range.'''
+    '''Plot case forecasts for currently 
+    selected countries and 
+    desired forecast range.'''
     trace = []
     df_sub = final_df
     #only update graph if forecast 
@@ -282,7 +284,7 @@ def update_prediction(country_list, weeks):
                           title={'text': 'Autoregression forecast', 
                                  'font': {'color': 'black', 'size': 17}, 
                                  'x': 0.5, 'y': 0.935},
-                          yaxis={'title': 'Change in cases'}
+                          yaxis={'title': 'Change in cases (per day)'}
                   )}
         return figure
     else:
